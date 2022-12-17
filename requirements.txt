@@ -1,0 +1,10 @@
+jax
+jaxlib
+optax
+flax
+torch
+torchvision
+tensorboard
+tensorflow
+gymnasium
+azure-ai-ml
