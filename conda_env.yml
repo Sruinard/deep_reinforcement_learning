@@ -1,0 +1,16 @@
+name: deeprl
+channels:
+  - defaults
+  - conda-forge
+  - nvidia/label/cuda-11.4.1
+dependencies:
+  - python=3.8
+  - pip
+  # - jax
+  # - jaxlib
+  - cuda-nvcc
+  - cuda-toolkit=11.4
+  # - cudnn=8.2
+  - cudnn=8.4.1.50
+  - pip:
+      - --requirement requirements.txt
