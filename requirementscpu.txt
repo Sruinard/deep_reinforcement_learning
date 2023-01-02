@@ -1,0 +1,15 @@
+torch
+torchvision
+clu==0.0.6
+flax==0.6.3
+jax==0.3.25
+jaxlib==0.3.25
+ml-collections==0.1.0
+numpy==1.22.0
+optax==0.1.4
+tensorboard==2.9.1
+tensorflow==2.9.3
+pytest
+tqdm
+gymnasium[atari]
+autorom[accept-rom-license]
