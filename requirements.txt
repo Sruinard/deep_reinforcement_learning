@@ -1,15 +1,18 @@
 torch
 torchvision
 clu==0.0.6
-flax==0.6.1
+flax==0.6.3
 --find-links https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
 jax==0.3.25
 jaxlib==0.3.25+cuda11.cudnn82  # Make sure CUDA version matches the base image.
 ml-collections==0.1.0
 numpy==1.22.0
 optax==0.1.4
-tensorboard==2.9.1
-tensorflow==2.9.3
+tensorboard==2.11.0
+tensorflow==2.11.0
+rlax==0.1.4
+chex==0.1.5
+moviepy
 pytest
 tqdm
 gymnasium[atari]

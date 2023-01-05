@@ -1,0 +1,16 @@
+{
+	"folders": [
+		{
+			"path": "."
+		},
+		{
+			"path": "003_dqn_pong"
+		}
+	],
+	"settings": {
+		"pythonTestExplorer.testFramework": "pytest",
+		"pythonTestExplorer.testplanEnabled": false,
+		"python.testing.cwd": "",
+		"python.testing.pytestEnabled": true
+	}
+}

@@ -1,9 +1,9 @@
 import gymnasium as gym
 import jax
+# import numpy as jnp
 import jax.numpy as jnp
 import collections
 from gymnasium.wrappers import frame_stack
-
 
 
 class FireResetEnv(gym.Wrapper):
@@ -37,29 +37,34 @@ class AccumulateNSteps(gym.Wrapper):
         reward = 0.0
         done = None
         for _ in range(self.repeat_action_n_times):
-            observation, step_reward, done, truncated, info = self.env.step(action)
+            observation, step_reward, done, truncated, info = self.env.step(
+                action)
             self.observation_buffer.append(observation)
             reward += step_reward
             if done:
                 break
         observation = jnp.max(jnp.stack(self.observation_buffer), axis=0)
         return observation, reward, done, truncated, info
-    
+
     def reset(self, seed=None, options=None):
         self.observation_buffer.clear()
         observation, info = self.env.reset()
         self.observation_buffer.append(observation)
         return observation, info
 
+
 class ResizeAndNormalizeFrames(gym.ObservationWrapper):
     def __init__(self, env: gym.Env, transformed_observation_shape=(84, 84, 1)):
         super().__init__(env)
-        self.observation_space = gym.spaces.Box(low=0.0, high=1.0, shape=transformed_observation_shape)
+        self.observation_space = gym.spaces.Box(
+            low=0.0, high=1.0, shape=transformed_observation_shape)
         self.transformed_observation_shape = transformed_observation_shape
-        
 
     def _resize(self, observation):
-        return jax.image.resize(observation, self.transformed_observation_shape, method='nearest')
+        resized_obs = jax.image.resize(
+            observation, (110, 84, 3), method='nearest')
+        cropped_obs = resized_obs[18:102, :].mean(axis=-1, keepdims=True)
+        return cropped_obs
 
     def _normalize(self, observation):
         return observation / 255.0
@@ -69,10 +74,11 @@ class ResizeAndNormalizeFrames(gym.ObservationWrapper):
         normalized_observation = self._normalize(resized_observation)
         return normalized_observation
 
+
 class AsJaxArray(gym.ObservationWrapper):
     def __init__(self, env):
         super().__init__(env)
-    
+
     def observation(self, observation):
         return jnp.asarray(observation)
 
@@ -82,13 +88,7 @@ def create(environment_name: str):
     env_press_fire_if_needed_to_start_game = FireResetEnv(env_raw)
     env_skip_n_steps = AccumulateNSteps(env_press_fire_if_needed_to_start_game)
     env_resized_and_normalized = ResizeAndNormalizeFrames(env_skip_n_steps)
-    env_stacked_frames = frame_stack.FrameStack(env_resized_and_normalized, num_stack=4)
+    env_stacked_frames = frame_stack.FrameStack(
+        env_resized_and_normalized, num_stack=4)
     env_jax_array = AsJaxArray(env_stacked_frames)
     return env_jax_array
-
-
-
-    
-
-
-
