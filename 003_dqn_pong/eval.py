@@ -4,6 +4,7 @@ import agent
 import config
 import jax.random as jrandom
 import numpy as np
+import os
 
 
 env = environment.create("PongNoFrameskip-v4")
@@ -32,4 +33,6 @@ print(f"Total reward: {total_reward}")
 if do_save_agent_playing:
     from moviepy.editor import ImageSequenceClip
     clip = ImageSequenceClip(list(np.asarray(frames) * 255.0), fps=25)
-    clip.write_gif("pong.gif", fps=25)
+    if not os.path.exists("./assets"):
+        os.makedirs("./assets")
+    clip.write_gif("./assets/pong.gif", fps=25)

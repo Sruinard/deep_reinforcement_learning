@@ -1,6 +1,5 @@
 import gymnasium as gym
 import jax
-# import numpy as jnp
 import jax.numpy as jnp
 import collections
 from gymnasium.wrappers import frame_stack
