@@ -2,7 +2,6 @@ import net
 import rlax
 import jax
 from flax.training import train_state
-import loss_function
 import jax.numpy as jnp
 import accumulator as acc
 import optax

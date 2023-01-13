@@ -7,21 +7,15 @@ class ActorCritic(nn.Module):
 
     def setup(self):
         self.backbone = nn.Sequential([
-            nn.Dense(features=128, kernel_init=nn.initializers.kaiming_normal()),
+            nn.Dense(features=512, kernel_init=nn.initializers.kaiming_normal()),
+            nn.leaky_relu,
+            nn.Dense(features=512, kernel_init=nn.initializers.kaiming_normal()),
             nn.leaky_relu
-        ]
-        )
+        ])
 
-        self.policy_head = nn.Sequential(
-            [
-                nn.Dense(features=self.n_actions)
-            ]
-        )
+        self.policy_head = nn.Sequential([nn.Dense(features=self.n_actions)])
 
-        self.value_head = nn.Sequential([
-            nn.Dense(features=1)
-        ]
-        )
+        self.value_head = nn.Sequential([nn.Dense(features=1)])
 
     def __call__(self, x):
         x = self.backbone(x)

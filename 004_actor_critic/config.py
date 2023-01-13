@@ -6,7 +6,7 @@ class TrainConfig:
         n_train_episodes: int = 1,
         n_eval_episodes: int = 1,
         eval_every_n_episodes: int = 20,
-        learning_rate: float = 1e-4,
+        learning_rate: float = 1e-3,
         gamma: float = 0.99,
         beta: float = 0.01,
         entropy_coeff: float = 0.01,

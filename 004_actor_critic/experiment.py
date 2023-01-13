@@ -1,7 +1,6 @@
 import config
 import net
 import accumulator as acc
-import loss_function
 import gymnasium as gym
 import agent
 import jax
