@@ -50,10 +50,10 @@ def run_loop(agent: agent.A2CAgent, env: gym.Env, accumulator: acc.TrajectoryAcc
                 print(
                     f"Loss: {loss} | Critic loss: {critic_loss} | Policy loss: {policy_loss}")
 
-                break
                 if reward_last_100 > 195.0:
                     print(f"Environment solved in {train_episode} episodes")
                     break
+                break
 
         # if train_episode % train_config.eval_every_n_episodes == 0:
         #     average_eval_reward = 0
