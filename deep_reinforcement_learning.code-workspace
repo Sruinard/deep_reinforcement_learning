@@ -5,6 +5,9 @@
 		},
 		{
 			"path": "003_dqn_pong"
+		},
+		{
+			"path": "004_actor_critic"
 		}
 	],
 	"settings": {
