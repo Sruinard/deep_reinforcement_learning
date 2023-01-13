@@ -50,29 +50,28 @@ def run_loop(agent: agent.A2CAgent, env: gym.Env, accumulator: acc.TrajectoryAcc
                 print(
                     f"Loss: {loss} | Critic loss: {critic_loss} | Policy loss: {policy_loss}")
 
-                if reward_last_100 > 195.0:
-                    print(f"Environment solved in {train_episode} episodes")
-                    break
-                break
+        if reward_last_100 > 195.0:
+            print(f"Environment solved in {train_episode} episodes")
+            break
 
-        # if train_episode % train_config.eval_every_n_episodes == 0:
-        #     average_eval_reward = 0
-        #     for eval_episode in range(train_config.n_eval_episodes):
-        #         episode_reward = 0
-        #         obs_tm1, _ = env.reset()
-        #         done = False
-        #         while not done:
-        #             a_tm1, _, _ = agent.actor_step(
-        #                 state, obs_tm1[jnp.newaxis, :], rng)
-        #             obs_t, r_t, done_t, _, _ = env.step(int(a_tm1))
-        #             obs_tm1 = obs_t
-        #             episode_reward += r_t
-        #             if done_t:
-        #                 average_eval_reward += episode_reward
-        #                 break
-        #     average_eval_reward /= train_config.n_eval_episodes
-        #     print(
-        #         f"Episode {train_episode} | Average eval reward: {average_eval_reward}")
+        if train_episode % train_config.eval_every_n_episodes == 0:
+            average_eval_reward = 0
+            for eval_episode in range(train_config.n_eval_episodes):
+                episode_reward = 0
+                obs_tm1, _ = env.reset()
+                done = False
+                while not done:
+                    a_tm1, _, _ = agent.actor_step(
+                        state, obs_tm1[jnp.newaxis, :], rng, is_deterministic=True)
+                    obs_t, r_t, done_t, _, _ = env.step(int(a_tm1))
+                    obs_tm1 = obs_t
+                    episode_reward += r_t
+                    if done_t:
+                        average_eval_reward += episode_reward
+                        break
+            average_eval_reward /= train_config.n_eval_episodes
+            print(
+                f"Episode {train_episode} | Average eval reward: {average_eval_reward}")
 
 
 if __name__ == "__main__":
