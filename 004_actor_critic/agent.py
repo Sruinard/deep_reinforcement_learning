@@ -1,11 +1,12 @@
-import net
-import rlax
 import jax
-from flax.training import train_state
 import jax.numpy as jnp
-import accumulator as acc
 import optax
+import rlax
+from flax.training import train_state
+
+import accumulator as acc
 import config
+import net
 
 
 class A2CAgent:
@@ -96,11 +97,11 @@ class A2CAgent:
             w_t=jnp.ones_like(adv_tm1)
         )
 
-        # beta_t = jnp.ones_like(
-        #     trajectory.a_t[:-1]) * self.train_config.entropy_coeff
-        # entropy = rlax.entropy_loss(logits, w_t=beta_t)
+        beta_t = jnp.ones_like(
+            trajectory.a_tm1) * self.train_config.entropy_coeff
+        entropy = rlax.entropy_loss(logits_tm1, w_t=beta_t)
 
         # the formula for entropy is -sum(p * log(p)) which is a negative number
         # if we become very confident in our actions, the entropy will be very small negative number
-        total_loss = policy_loss + critic_loss  # + entropy
+        total_loss = policy_loss + critic_loss + entropy
         return total_loss, (critic_loss, policy_loss)  # , entropy, v_targets)

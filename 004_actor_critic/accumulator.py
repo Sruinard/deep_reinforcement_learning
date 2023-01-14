@@ -25,3 +25,6 @@ class TrajectoryAccumulator:
 
     def is_ready(self):
         return len(self._trajectory) == self._trajectory.maxlen
+    
+    def clear(self):
+        self._trajectory.clear()

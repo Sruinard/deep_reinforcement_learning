@@ -14,7 +14,6 @@ class ActorCritic(nn.Module):
         ])
 
         self.policy_head = nn.Sequential([nn.Dense(features=self.n_actions)])
-
         self.value_head = nn.Sequential([nn.Dense(features=1)])
 
     def __call__(self, x):

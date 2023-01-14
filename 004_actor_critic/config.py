@@ -5,13 +5,14 @@ class TrainConfig:
         n_actions: int,
         n_train_episodes: int = 1,
         n_eval_episodes: int = 1,
-        eval_every_n_episodes: int = 20,
+        eval_every_n_episodes: int = 25,
         learning_rate: float = 1e-3,
         gamma: float = 0.99,
         beta: float = 0.01,
         entropy_coeff: float = 0.01,
         max_trajectory_length: int = 500,
         n_steps: int = 20,
+        log_dir: str = "./logs",
         seed: int = 42
     ):
         self.obs_shape = obs_shape
@@ -31,3 +32,6 @@ class TrainConfig:
 
         # for reproducibility
         self.seed = seed
+
+        # for logging
+        self.log_dir = log_dir
