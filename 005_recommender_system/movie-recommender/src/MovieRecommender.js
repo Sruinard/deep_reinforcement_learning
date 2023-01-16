@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import * as tf from "@tensorflow/tfjs";
 import "./MovieRecommender.css";
 import UserInput from "./UserInput";
-
+import Paper from "@mui/material/Paper";
+import Box from "@mui/material/Box";
 const predict = async (model, input) => {
   console.log("input", input);
   const features = tf.tensor(input);
@@ -45,19 +46,57 @@ function MovieRecommender() {
     loadMovies();
   }, []);
 
-  const a_movie = movies[2];
-
   return (
     <div>
-      <h1>Movie Recommender</h1>
-      <p>Model: {model ? "Loaded" : status}</p>
-      <UserInput handleSubmit={handleSubmit} />
-      <h1>Recommended Movie: {recommendedMovie}</h1>
-      <p>A Movie: {a_movie}</p>
+      {/* div place title in center */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: "column",
+          padding: "20px",
+        }}
+      >
+        <h1 style={{ margin: "0px" }}>Movie Recommender</h1>
+        <p>{model ? "Movie Recommendations using your RL-Agent" : status}</p>
+      </div>
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexDirection: "column",
+        }}
+      >
+        <UserInput handleSubmit={handleSubmit} />
+      </div>
       {recommendedMovie && (
         <div>
-          <h1>Recommended Movie Title: {recommendedMovie}</h1>
-          <h2>{movies[recommendedMovie[0] + 1]}</h2>
+          <Box
+            sx={{
+              display: "flex",
+              flexWrap: "wrap",
+              alignItems: "center",
+              justifyContent: "center",
+              "& > :not(style)": {
+                m: 1,
+                width: 256,
+                height: 128,
+              },
+            }}
+          >
+            <Paper
+              elevation={10}
+              style={{
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              {movies[recommendedMovie[0] + 1]}
+            </Paper>
+          </Box>
         </div>
       )}
     </div>

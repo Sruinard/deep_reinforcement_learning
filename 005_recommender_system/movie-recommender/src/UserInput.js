@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import TextField from "@mui/material/TextField";
 import Select from "@mui/material/Select";
 import MenuItem from "@mui/material/MenuItem";
-
+import InputLabel from "@mui/material/InputLabel";
 // const genderOptions = {
 //   Male: "male",
 //   Female: "female",
@@ -37,8 +37,8 @@ const setOptions = (path, setter) => {
 };
 
 const UserInput = (props) => {
-  const [age, setAge] = useState("");
-  const [gender, setGender] = useState("");
+  const [age, setAge] = useState("28");
+  const [gender, setGender] = useState("F");
   const [occupation, setOccupation] = useState("");
   const [zipcode, setZipCode] = useState("");
 
@@ -74,22 +74,70 @@ const UserInput = (props) => {
           )
         }
       >
-        <h1>Movie Recommender</h1>
+        <h1>100 Movies to recommend</h1>
+        <h5
+          style={{
+            textAlign: "center",
+          }}
+        >
+          For a small data exchange, we help you find the movies that best fit
+          you!
+        </h5>
+
+        <InputLabel
+          style={{
+            alignSelf: "flex-end",
+            textAlign: "end",
+            color: "black",
+          }}
+          id="demo-simple-select-label"
+        >
+          Age
+        </InputLabel>
         <TextField
+          style={{ width: "100%" }}
           label="Age"
           type="number"
           value={age}
           onChange={(e) => setAge(e.target.value)}
         />
 
-        <Select value={gender} onChange={(e) => setGender(e.target.value)}>
+        <InputLabel
+          style={{
+            alignSelf: "flex-end",
+            textAlign: "end",
+            color: "black",
+          }}
+          id="demo-simple-select-label"
+        >
+          Gender
+        </InputLabel>
+        <Select
+          style={{ width: "100%" }}
+          label="Gender"
+          value={gender}
+          onChange={(e) => setGender(e.target.value)}
+        >
           {Object.keys(genderOptions).map((key) => (
             <MenuItem key={key} value={genderOptions[key]}>
               {genderOptions ? genderOptions[key].label : key}
             </MenuItem>
           ))}
         </Select>
+
+        <InputLabel
+          style={{
+            alignSelf: "flex-end",
+            textAlign: "end",
+            color: "black",
+          }}
+          id="demo-simple-select-label"
+        >
+          Occupation
+        </InputLabel>
+
         <Select
+          style={{ width: "100%" }}
           value={occupation}
           onChange={(e) => setOccupation(e.target.value)}
         >
@@ -99,8 +147,21 @@ const UserInput = (props) => {
             </MenuItem>
           ))}
         </Select>
-
-        <Select value={zipcode} onChange={(e) => setZipCode(e.target.value)}>
+        <InputLabel
+          style={{
+            alignSelf: "flex-end",
+            textAlign: "end",
+            color: "black",
+          }}
+          id="demo-simple-select-label"
+        >
+          Zip Code
+        </InputLabel>
+        <Select
+          style={{ width: "100%" }}
+          value={zipcode}
+          onChange={(e) => setZipCode(e.target.value)}
+        >
           {Object.keys(zipCodeOptions).map((key) => (
             <MenuItem key={key} value={zipCodeOptions[key]}>
               {zipCodeOptions ? zipCodeOptions[key].label : key}
