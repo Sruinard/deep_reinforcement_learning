@@ -19,7 +19,7 @@ os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
 
 def main():
-    n_movies_to_recommend = 20
+    n_movies_to_recommend = 100
     env = environment.MovieLensEnv(
         data_dir='./data/ml-100k', n_actions=n_movies_to_recommend)
     hparams = config.HParams(n_actions=n_movies_to_recommend)
@@ -99,15 +99,19 @@ def main():
                 )
                 env.save_vocab_to_idx_mapping_as_json(
                     env.occupations_to_idx,
-                    path="./assets/tfjs_model/vocab_to_idx.json"
+                    path="./assets/tfjs_model/occupations_to_idx.json"
                 )
                 env.save_vocab_to_idx_mapping_as_json(
                     env.zip_codes_to_idx,
-                    path="./assets/tfjs_model/zipcodes_to_idx.json"
+                    path="./assets/tfjs_model/zip_codes_to_idx.json"
                 )
                 env.save_vocab_to_idx_mapping_as_json(
-                    {"M": 0, "F": 1}, path="./assets/tfjs_model/gender_mapping_to_idx.json"
+                    {"M": 0, "F": 1}, path="./assets/tfjs_model/gender_to_idx.json"
                 )
+                env.save_vocab_to_idx_mapping_as_json({movie_id: movie_attributes["title"] for movie_id, movie_attributes in env.movies.items()},
+                                                      path="./assets/movie_id_to_title.json"
+                                                      )
+
             print(f"Average reward: {avg_regret}")
             writer.add_scalar("Eval/average_regret", avg_regret, episode_idx)
             writer.add_scalar("epsilon", float(

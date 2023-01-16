@@ -7,7 +7,7 @@ import numpy as np
 import os
 
 
-n_movies_to_recommend = 20
+n_movies_to_recommend = 100
 env = environment.MovieLensEnv("./data/ml-100k", n_movies_to_recommend)
 hparams = config.HParams(n_actions=n_movies_to_recommend)
 dqn_agent = agent.DQNAgent(hparams=hparams)
