@@ -8,6 +8,9 @@
 		},
 		{
 			"path": "004_actor_critic"
+		},
+		{
+			"path": "005_recommender_system"
 		}
 	],
 	"settings": {

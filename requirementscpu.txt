@@ -7,8 +7,9 @@ jaxlib==0.3.25
 ml-collections==0.1.0
 numpy==1.22.0
 optax==0.1.4
-tensorboard==2.9.1
-tensorflow==2.9.3
+tensorboard==2.11.0
+tensorflow==2.11.0
+tensorflowjs
 rlax==0.1.4
 chex==0.1.5
 moviepy

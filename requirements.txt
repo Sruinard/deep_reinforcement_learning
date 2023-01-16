@@ -10,6 +10,7 @@ numpy==1.22.0
 optax==0.1.4
 tensorboard==2.11.0
 tensorflow==2.11.0
+tensorflowjs
 rlax==0.1.4
 chex==0.1.5
 moviepy
