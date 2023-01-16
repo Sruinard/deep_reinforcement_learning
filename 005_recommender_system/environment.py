@@ -26,6 +26,7 @@ class MovieLensEnv(gym.Env):
         self.observation_space = gym.spaces.Box(
             low=np.array([0, 0, 0, 0]), high=np.array([100, 1, self.n_occupations, self.n_zip_codes]), dtype=np.float32)
         self.action_space = gym.spaces.Discrete(n_actions)
+        self.save_files_for_inference()
         self.reset()
 
     def _load_user_ratings_from_file(self, filename: str = 'u1.base'):
@@ -146,3 +147,21 @@ class MovieLensEnv(gym.Env):
     def save_vocab_to_idx_mapping_as_json(self, vocab_to_idx: Dict[str, int], path: str):
         with open(path, 'w') as f:
             json.dump(vocab_to_idx, f)
+
+    def save_files_for_inference(self):
+        if not os.path.exists("./assets/tfjs_model"):
+            os.makedirs("./assets/tfjs_model")
+        self.save_vocab_to_idx_mapping_as_json(
+            self.occupations_to_idx,
+            path="./assets/tfjs_model/occupations_to_idx.json"
+        )
+        self.save_vocab_to_idx_mapping_as_json(
+            self.zip_codes_to_idx,
+            path="./assets/tfjs_model/zip_codes_to_idx.json"
+        )
+        self.save_vocab_to_idx_mapping_as_json(
+            {"M": 0, "F": 1}, path="./assets/tfjs_model/gender_to_idx.json"
+        )
+        self.save_vocab_to_idx_mapping_as_json({movie_id: movie_attributes["title"] for movie_id, movie_attributes in self.movies.items()},
+                                               path="./assets/movie_id_to_title.json"
+                                               )

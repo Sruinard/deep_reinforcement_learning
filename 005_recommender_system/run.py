@@ -97,20 +97,6 @@ def main():
                     state=state,
                     tfjs_model_dir="./assets/tfjs_model",
                 )
-                env.save_vocab_to_idx_mapping_as_json(
-                    env.occupations_to_idx,
-                    path="./assets/tfjs_model/occupations_to_idx.json"
-                )
-                env.save_vocab_to_idx_mapping_as_json(
-                    env.zip_codes_to_idx,
-                    path="./assets/tfjs_model/zip_codes_to_idx.json"
-                )
-                env.save_vocab_to_idx_mapping_as_json(
-                    {"M": 0, "F": 1}, path="./assets/tfjs_model/gender_to_idx.json"
-                )
-                env.save_vocab_to_idx_mapping_as_json({movie_id: movie_attributes["title"] for movie_id, movie_attributes in env.movies.items()},
-                                                      path="./assets/movie_id_to_title.json"
-                                                      )
 
             print(f"Average reward: {avg_regret}")
             writer.add_scalar("Eval/average_regret", avg_regret, episode_idx)
