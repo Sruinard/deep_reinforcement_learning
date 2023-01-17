@@ -1,5 +1,4 @@
 import MovieRecommender from "./MovieRecommender";
-// import UserInput from "./UserInput";
 
 function App() {
   return (
@@ -8,7 +7,6 @@ function App() {
         {
           <>
             <MovieRecommender />
-            {/* <UserInput /> */}
           </>
         }
       </header>
