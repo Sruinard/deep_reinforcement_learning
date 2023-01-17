@@ -52,7 +52,7 @@ const UserInput = (props) => {
     const filenames_and_setters = [
       ["/assets/tfjs_model/occupations_to_idx.json", setOccupationOptions],
       ["/assets/tfjs_model/gender_to_idx.json", setGenderOptions],
-      ["/assets/tfjs_model/zipcodes_to_idx.json", setZipcodeOptions],
+      ["/assets/tfjs_model/zip_codes_to_idx.json", setZipcodeOptions],
     ];
     filenames_and_setters.forEach(([path, setter]) => setOptions(path, setter));
     setOptionsLoaded(true);
