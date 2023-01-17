@@ -76,19 +76,24 @@ def main():
         if not episode_idx % hparams.evaluate_every_n_epoch:
             print(f"Episode {episode_idx}")
             total_regret = 0.0
+            total_n_steps = 0
 
             for _ in range(hparams.n_episodes_per_eval):
+
+                n_steps_in_episode = 0
                 obs, _ = env.reset()
                 epsilon = 0.00  # No exploration
                 is_done = False
                 while not is_done:
+                    total_n_steps += 1
                     a = dqn_agent.policy(
                         state, obs, env.action_space.n, epsilon, rng)
                     next_obs, r, is_done, _, _ = env.step(int(a))
                     total_regret += r
                     obs = next_obs
+                
 
-            avg_regret = total_regret / hparams.n_episodes_per_eval
+            avg_regret = total_regret / total_n_steps
             if avg_regret > best_regret:
                 print(f"New best regret: {avg_regret} Saving model...")
                 best_regret = avg_regret

@@ -7,8 +7,8 @@ class HParams:
 
     log_dir: str = "./logs/"
     checkpoints_dir: str = "./checkpoints/"
-    n_train_episodes: int = 2000
-    evaluate_every_n_epoch: int = 50
+    n_train_episodes: int = 10000
+    evaluate_every_n_epoch: int = 100
     n_episodes_per_eval: int = 5
     batch_size: int = 32
     learning_rate: float = 0.0001
