@@ -68,7 +68,7 @@ const UserInput = (props) => {
           props.handleSubmit(
             e,
             parseFloat(age),
-            parseFloat(gender),
+            parseFloat(gender), 
             parseFloat(occupation),
             parseFloat(zipcode)
           )
@@ -119,7 +119,7 @@ const UserInput = (props) => {
           onChange={(e) => setGender(e.target.value)}
         >
           {Object.keys(genderOptions).map((key) => (
-            <MenuItem key={key} value={genderOptions[key]}>
+            <MenuItem key={key} value={key}>
               {genderOptions ? genderOptions[key].label : key}
             </MenuItem>
           ))}
@@ -142,7 +142,7 @@ const UserInput = (props) => {
           onChange={(e) => setOccupation(e.target.value)}
         >
           {Object.keys(occupationOptions).map((key) => (
-            <MenuItem key={key} value={occupationOptions[key]}>
+            <MenuItem key={key} value={key}>
               {occupationOptions ? occupationOptions[key].label : key}
             </MenuItem>
           ))}
@@ -163,7 +163,7 @@ const UserInput = (props) => {
           onChange={(e) => setZipCode(e.target.value)}
         >
           {Object.keys(zipCodeOptions).map((key) => (
-            <MenuItem key={key} value={zipCodeOptions[key]}>
+            <MenuItem key={key} value={key}>
               {zipCodeOptions ? zipCodeOptions[key].label : key}
             </MenuItem>
           ))}
