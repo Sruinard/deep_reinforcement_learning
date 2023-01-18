@@ -125,7 +125,7 @@ class MovieLensEnv(gym.Env):
 
     def regret(self, user_id: int, movie_id: int):
         max_user_reward = max(list(self.user_ratings[user_id].values()))
-        return self.reward(user_id, movie_id) - max_user_reward
+        return max_user_reward - self.reward(user_id, movie_id)
 
     def reset(self, seed=None, options=None):
         self.prev_user_id = np.random.choice(
