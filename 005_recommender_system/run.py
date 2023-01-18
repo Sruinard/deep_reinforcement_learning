@@ -28,8 +28,7 @@ def main():
     state = dqn_agent.init_states()
     rng = jrandom.PRNGKey(hparams.seed)
     best_regret = -np.inf
-    writer = SummaryWriter(log_dir=hparams.log_dir,
-                           comment="-recommender-system-movie-lens")
+    writer = SummaryWriter(comment="-recommender-system-movie-lens")
 
     for episode_idx in range(hparams.n_train_episodes):
         rng, _ = jrandom.split(rng)
@@ -91,7 +90,6 @@ def main():
                     next_obs, r, is_done, _, _ = env.step(int(a))
                     total_regret += r
                     obs = next_obs
-                
 
             avg_regret = total_regret / total_n_steps
             if avg_regret > best_regret:
