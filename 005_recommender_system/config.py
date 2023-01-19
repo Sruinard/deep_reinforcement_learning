@@ -11,7 +11,7 @@ class HParams:
     evaluate_every_n_epoch: int = 100
     n_episodes_per_eval: int = 5
     batch_size: int = 32
-    learning_rate: float = 0.001
+    learning_rate: float = 0.0001
     memory_size: int = 4000
     gamma: float = 0.99
     epsilon_decay_steps: int = 10000

@@ -27,7 +27,7 @@ def main():
     memory = replay_buffer.ExperienceReplay(memory_size=hparams.memory_size)
     state = dqn_agent.init_states()
     rng = jrandom.PRNGKey(hparams.seed)
-    best_regret = -np.inf
+    best_regret = np.inf
     writer = SummaryWriter(comment="-recommender-system-movie-lens")
 
     for episode_idx in range(hparams.n_train_episodes):
@@ -92,7 +92,7 @@ def main():
                     obs = next_obs
 
             avg_regret = total_regret / total_n_steps
-            if avg_regret > best_regret:
+            if avg_regret < best_regret:
                 print(f"New best regret: {avg_regret} Saving model...")
                 best_regret = avg_regret
                 agent.save_model(state=state, path=hparams.checkpoints_dir)
