@@ -24,6 +24,6 @@ class ExperienceReplay:
             jnp.asarray(obs_t),
         )
     
-    def is_ready(self, batch_size: int):
-        return len(self.memory) >= batch_size
+    def is_ready(self, memory_size: int):
+        return len(self.memory) >= memory_size
     

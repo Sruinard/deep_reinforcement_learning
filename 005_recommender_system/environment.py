@@ -13,7 +13,7 @@ N_MOVIES = 1682
 
 
 class MovieLensEnv(gym.Env):
-    def __init__(self, data_dir: str, n_actions: int, train: bool = True):
+    def __init__(self, data_dir: str, n_actions: int, train: bool = True, rng=None):
         # age, gender, occupation, zip code
         self.data_dir = data_dir
         self.n_actions = n_actions
@@ -31,7 +31,7 @@ class MovieLensEnv(gym.Env):
             low=np.array([0, 0, 0, 0]), high=np.array([100, 1, self.n_occupations, self.n_zip_codes]))
         self.action_space = gym.spaces.Discrete(n_actions)
         self.save_files_for_inference()
-        self.reset()
+        self.reset(rng=rng)
 
     def _load_user_movie_ratings_matrix(self, filename: str = 'u1.base'):
         user_movie_ratings_matrix = np.zeros((N_USERS, N_MOVIES))
@@ -112,11 +112,15 @@ class MovieLensEnv(gym.Env):
 
         return movies
 
-    def step(self, action: int):
-        reward = self.regret(self.prev_user_id, action)
-        user_id = np.random.choice(self.user_movies_ratings.shape[0])
-        observation = self.user_observations[user_id]
-        self.prev_user_id = user_id
+    def step(self, action: int, rng):
+        reward = self.reward(self.prev_user_id, action)
+
+        # sample single new user using jax rng
+        random_user_id = jax.random.randint(
+            rng, shape=(), minval=0, maxval=self.user_movies_ratings.shape[0])
+
+        observation = self.user_observations[random_user_id]
+        self.prev_user_id = random_user_id
 
         self.n_steps += 1
         done = self.n_steps == self.user_movies_ratings.shape[0]
@@ -132,8 +136,10 @@ class MovieLensEnv(gym.Env):
         max_user_reward = jnp.max(self.user_movies_ratings[user_id, :])
         return max_user_reward - self.reward(user_id, movie_id)
 
-    def reset(self, seed=None, options=None):
-        self.prev_user_id = np.random.choice(self.user_movies_ratings.shape[0])
+    def reset(self, seed=None, options=None, rng=None):
+        self.prev_user_id = jax.random.randint(
+            rng, shape=(), minval=0, maxval=self.user_movies_ratings.shape[0])
+
         observation = self.user_observations[self.prev_user_id]
         info = {}
         self.n_steps = 0

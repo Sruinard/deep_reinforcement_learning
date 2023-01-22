@@ -20,6 +20,7 @@ class DQNAgent:
         self._dqn = net.DQN(n_actions=hparams.n_actions)
         self.obs_shape = obs_shape
         self.policy = jax.jit(self.policy)
+        self._loss_fn = jax.jit(self._loss_fn)
         self.update_step = jax.jit(self.update_step)
 
     def init_states(self) -> train_state.TrainState:
@@ -43,17 +44,18 @@ class DQNAgent:
         return max(self.hparams.epsilon_end, self.hparams.epsilon_start - delta)
 
     def collect_step(self, state: train_state.TrainState, env: gym.Env, observation: jax.Array, rng):
+        rng, policy_rng, env_rng = jrandom.split(rng, 3)
         epsilon = self.get_epsilon(state.step)
         action = self.policy(state, observation,
-                             self.hparams.n_actions, epsilon, rng)
-        next_observation, reward, is_done, _, _ = env.step(int(action))
+                             self.hparams.n_actions, epsilon, policy_rng)
+        next_observation, reward, is_done, _, _ = env.step(
+            int(action), rng=env_rng)
         return observation, action, reward, is_done, next_observation
 
     def _loss_fn(self, params, batch):
         obs_tm1, a_tm1, r_t, is_done, obs_t = batch
         q_tm1 = self._dqn.apply({"params": params}, obs_tm1)
         q_value_pred = q_tm1[jnp.arange(q_tm1.shape[0]), a_tm1]
-
         return jnp.mean(rlax.l2_loss(jax.lax.stop_gradient(r_t) - q_value_pred))
 
     def update_step(self, batch, state: train_state.TrainState):
@@ -61,7 +63,6 @@ class DQNAgent:
             state.params,
             batch
         )
-
         state = state.apply_gradients(grads=grads)
         return loss, state
 
