@@ -6,6 +6,7 @@ import jax.numpy as jnp
 import jax.random as jrandom
 import numpy as np
 from torch.utils.tensorboard import SummaryWriter
+from absl import flags, app
 
 import agent
 import config
@@ -17,12 +18,21 @@ os.environ.setdefault('JAX_PLATFORM_NAME', 'gpu')     # tell JAX to use GPU
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '0.7'  # don't use all gpu mem
 os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 
+# flags n movies to recommend
+flags.DEFINE_integer("n_movies_to_recommend", 2,
+                     "Number of movies to recommend")
 
-def main():
-    n_movies_to_recommend = 100
+# parse flags
+FLAGS = flags.FLAGS
+
+
+def main(argv):
+    print(f"Learning to recommend {FLAGS.n_movies_to_recommend} movies...")
+    # check for gpu
+    print("Found", jax.local_device_count(), "GPUs")
     env = environment.MovieLensEnv(
-        data_dir='./data/ml-100k', n_actions=n_movies_to_recommend)
-    hparams = config.HParams(n_actions=n_movies_to_recommend)
+        data_dir='./data/ml-100k', n_actions=FLAGS.n_movies_to_recommend)
+    hparams = config.HParams(n_actions=FLAGS.n_movies_to_recommend)
     dqn_agent = agent.DQNAgent(hparams=hparams)
     memory = replay_buffer.ExperienceReplay(memory_size=hparams.memory_size)
     state = dqn_agent.init_states()
@@ -31,7 +41,6 @@ def main():
     writer = SummaryWriter(comment="-recommender-system-movie-lens")
 
     for episode_idx in range(hparams.n_train_episodes):
-        rng, _ = jrandom.split(rng)
         obs, _ = env.reset()
         is_done = False
         total_reward = 0
@@ -41,6 +50,7 @@ def main():
         total_regret = 0.0
 
         while not is_done:
+            rng, _ = jrandom.split(rng)
             n_steps_in_episode += 1
             obs, a, r, is_done, obs_t = dqn_agent.collect_step(
                 state=state,
@@ -54,13 +64,18 @@ def main():
             obs = obs_t
 
             if memory.is_ready(hparams.batch_size):
+                batch = memory.sample_batch(hparams.batch_size)
                 loss, state = dqn_agent.update_step(
-                    batch=memory.sample_batch(hparams.batch_size),
+                    batch=batch,
                     state=state
                 )
+
                 total_loss += loss
             if is_done:
                 print(f"Episode {episode_idx} - regret: {total_regret / n_steps_in_episode} - loss: {total_loss / n_steps_in_episode} - steps: {n_steps_in_episode} - time: {time.time() - time_start_episode} - epsilon: {dqn_agent.get_epsilon(state.step)}")
+                # compute q values
+                print(
+                    f"obs: {batch[0][:10]}, Q values: { state.apply_fn({'params': state.params}, batch[0][:10]) }, actions: {batch[1][:10]}, rewards: {batch[2][:10]}")
                 writer.add_scalar(
                     "Train/loss", float(total_loss / n_steps_in_episode), episode_idx)
                 writer.add_scalar("Frames/second", n_steps_in_episode /
@@ -102,7 +117,8 @@ def main():
                 )
 
             print(f"Average reward: {avg_regret}")
-            writer.add_scalar("Eval/average_regret", avg_regret, episode_idx)
+            writer.add_scalar("Eval/average_regret",
+                              float(avg_regret), episode_idx)
             writer.add_scalar("epsilon", float(
                 dqn_agent.get_epsilon(state.step)), episode_idx)
 
@@ -110,4 +126,4 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    app.run(main)

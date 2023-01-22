@@ -17,9 +17,8 @@ def load_model(path, state):
     return state
 
 
-def get_state_object():
+def get_state_object(n_movies_to_recommend: int):
     """Get state object."""
-    n_movies_to_recommend = 100
     hparams = config.HParams(n_actions=n_movies_to_recommend)
     dqn_agent = agent.DQNAgent(hparams=hparams)
     state = dqn_agent.init_states()

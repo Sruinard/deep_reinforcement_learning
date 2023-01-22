@@ -54,7 +54,7 @@ class DQNAgent:
         q_tm1 = self._dqn.apply({"params": params}, obs_tm1)
         q_value_pred = q_tm1[jnp.arange(q_tm1.shape[0]), a_tm1]
 
-        return jnp.mean(rlax.l2_loss(r_t - q_value_pred))
+        return jnp.mean(rlax.l2_loss(jax.lax.stop_gradient(r_t) - q_value_pred))
 
     def update_step(self, batch, state: train_state.TrainState):
         loss, grads = jax.value_and_grad(self._loss_fn)(
