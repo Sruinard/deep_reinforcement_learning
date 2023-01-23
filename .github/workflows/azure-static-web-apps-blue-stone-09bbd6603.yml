@@ -22,6 +22,7 @@ jobs:
         with:
           submodules: true
       - run: |
+          chmod +x upload_artifacts_to_website.sh
           ./upload_artifacts_to_website.sh
 
   build_and_deploy_job:
