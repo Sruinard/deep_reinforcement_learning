@@ -15,7 +15,14 @@ import Button from "@mui/material/Button";
 
 const predict = async (model, input) => {
   console.log("input", input);
-  const features = tf.tensor(input);
+  const n_occupations_in_movie_lens_dataset = 21;
+  const n_zip_codes_in_movie_lens_dataset = 3439; 
+  const max_gender_value = 1; // 0 or 1
+  const max_age = 100; // 1 to 100
+
+
+  const raw_inputs = tf.tensor(input);
+  const features = raw_inputs.div(tf.tensor([max_age, max_gender_value, n_occupations_in_movie_lens_dataset, n_zip_codes_in_movie_lens_dataset]));
   const MovieQvalues = model.predict(features);
   const recommendedMovie = tf.argMax(MovieQvalues, 1).dataSync();
   console.log("MovieQvalues", MovieQvalues);

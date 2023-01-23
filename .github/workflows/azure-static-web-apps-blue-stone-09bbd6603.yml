@@ -10,9 +10,23 @@ on:
       - main
 
 jobs:
-  build_and_deploy_job:
+  add_model_artifacts_to_build:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.action != 'closed')
     runs-on: ubuntu-latest
+    name: Add Artifact
+    defaults:
+      run:
+        working-directory: ./005_recommender_system/
+    steps:
+      - uses: actions/checkout@v2
+        with:
+          submodules: true
+      - run: |
+          ./upload_artifacts_to_website.sh
+
+  build_and_deploy_job:
+    runs-on: ubuntu-latest
+    needs: add_model_artifacts_to_build
     name: Build and Deploy Job
     steps:
       - uses: actions/checkout@v2
