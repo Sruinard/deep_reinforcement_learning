@@ -1,13 +1,15 @@
-import environment
-import net
-import agent
-import config
+import os
+
 import jax.random as jrandom
 import numpy as np
-import os
+import tensorflow as tf
 import tensorflowjs as tfjs
 from flax.training import train_state
-import tensorflow as tf
+
+import agent
+import config
+import environment
+import net
 
 
 def load_model(path, state):

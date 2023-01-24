@@ -11,6 +11,9 @@
 		},
 		{
 			"path": "005_recommender_system"
+		},
+		{
+			"path": "ppo"
 		}
 	],
 	"settings": {
