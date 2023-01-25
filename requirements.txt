@@ -15,6 +15,7 @@ rlax==0.1.4
 chex==0.1.5
 moviepy
 pytest
+envpool
 tqdm
 gymnasium[atari]
 autorom[accept-rom-license]
