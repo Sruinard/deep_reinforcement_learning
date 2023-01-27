@@ -1,14 +1,14 @@
 
 
 class Config:
-    n_envs = 10
-    env_seed = 0
+    n_envs = 32
+    env_seed = 42
 
-    n_epochs = 100
+    n_epochs = 100000
     n_updates_per_rollout = 4
-    horizon = 12
+    horizon = 256
 
-    learning_rate = 1e-3
+    learning_rate = 1e-4
     model_seed = 42
 
     gamma = 0.99

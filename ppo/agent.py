@@ -23,6 +23,7 @@ class Trajectory:
     values: jnp.ndarray
     advantages: jnp.ndarray = None
     returns: jnp.ndarray = None
+    episode_returns: jnp.ndarray = None
 
 
 @partial(jax.vmap, in_axes=(None, 0, None, None, None))
@@ -31,6 +32,7 @@ def ppo_forward(state: train_state.TrainState, obs, rng: jax.random.PRNGKey, n_a
     rng, key = jax.random.split(rng)
     logits, value = state.apply_fn({"params": state.params}, obs)
     probs = jax.nn.softmax(logits)
+
     action = jax.lax.select(is_deterministic, jnp.argmax(logits), jax.random.choice(
         key, a=jnp.arange(n_actions), p=probs, replace=False))
 
@@ -38,20 +40,12 @@ def ppo_forward(state: train_state.TrainState, obs, rng: jax.random.PRNGKey, n_a
     return action, value.squeeze(), log_probs
 
 
-@partial(jax.vmap, in_axes=(None, 0, 0))
-def ppo_forward_during_update_steps(state: train_state.TrainState, obs, action) -> List[jnp.ndarray]:
-    """Collect a single trajectory."""
-    logits, value = state.apply_fn({"params": state.params}, obs)
-    log_probs = jax.nn.log_softmax(logits)[action]
-    return logits, value.squeeze(), log_probs
-
-
 def collect_trajectory(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, is_deterministic=False):
     """Collect a single trajectory."""
-    rng, ppo_key = jax.random.split(rng)
     obs, _ = envs.reset()
     # add 1 to horizon to include the last step needed for computing GAE.
     for step in range(horizon + 1):
+        rng, ppo_key = jax.random.split(rng)
         action, value, log_probs = ppo_forward(
             state, obs, ppo_key, envs.action_space.n, is_deterministic)
         next_obs, reward, done, _, _ = envs.step(np.array(action))
@@ -84,45 +78,72 @@ def compute_gae_from_trajectory(rewards, values, dones, gamma: float, gae_lambda
     return advantages, returns
 
 
+def compute_envpool_reward_per_env(rewards, dones):
+    """Compute the average episode return per environment."""
+    rewards = rewards[1:]
+    dones = dones[1:]
+    episode_returns = rewards.sum(
+        axis=0) / dones.sum(axis=0) + 1  # always one episode
+    return episode_returns
+
+
 def collect_experiences(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, gamma: float, gae_lambda: float, is_deterministic=False):
     """Collect a single trajectory."""
     state, trajectory, rng = collect_trajectory(
         envs, state, trajectory, horizon, rng, is_deterministic)
     advantages, returns = compute_gae_from_trajectory(
         trajectory.rewards, trajectory.values, trajectory.dones, gamma, gae_lambda)
-    trajectory = trajectory.replace(advantages=advantages, returns=returns)
+
+    average_episode_return_per_env = compute_envpool_reward_per_env(
+        trajectory.rewards, trajectory.dones)
+    trajectory = trajectory.replace(
+        advantages=advantages, returns=returns, episode_returns=average_episode_return_per_env)
+
     return trajectory, rng
-
-
-def ppo_loss(state: train_state.TrainState, trajectory: Trajectory, entropy_coeff: float = 0.01, clip_range: float = 0.2):
-    """Compute the PPO loss."""
-
-    logits, values, new_log_probs = ppo_forward_during_update_steps(
-        state, trajectory.obs, jnp.asarray(trajectory.actions, dtype=jnp.int32))
-
-    entropy = rlax.entropy_loss(logits, entropy_coeff *
-                                jnp.ones_like(trajectory.actions))
-    old_log_probs = trajectory.log_probs
-    prob_ratios_t = jnp.exp(new_log_probs - old_log_probs)
-
-    normalized_advantages = (trajectory.advantages - jnp.mean(
-        trajectory.advantages)) / (jnp.std(trajectory.advantages) + 1e-8)
-    actor_loss = rlax.clipped_surrogate_pg_loss(
-        prob_ratios_t=prob_ratios_t,
-        adv_t=normalized_advantages,
-        epsilon=clip_range
-    )
-    critic_loss = jnp.mean(rlax.l2_loss(trajectory.returns - values.squeeze()))
-    loss = actor_loss + 0.5 * critic_loss - entropy
-    return loss
 
 
 def ppo_update(state: train_state.TrainState, trajectory: Trajectory):
     """Update the PPO agent."""
-    loss, grads = jax.value_and_grad(
-        ppo_loss, allow_int=True)(state, trajectory)
+
+    @partial(jax.vmap, in_axes=(None, 0, 0))
+    def ppo_forward_during_update_steps(params, obs, action) -> List[jnp.ndarray]:
+        """Collect a single trajectory."""
+        logits, value = state.apply_fn({"params": params}, obs)
+        log_probs = jax.nn.log_softmax(logits)[action]
+        return logits, value.squeeze(), log_probs
+
+    @jax.jit
+    def ppo_loss(params, trajectory: Trajectory, entropy_coeff: float = 0.01, clip_range: float = 0.2):
+        """Compute the PPO loss."""
+
+        logits, values, new_log_probs = ppo_forward_during_update_steps(
+            params, trajectory.obs, jnp.asarray(trajectory.actions, dtype=jnp.int32))
+
+        entropy = rlax.entropy_loss(logits, entropy_coeff *
+                                    jnp.ones_like(trajectory.actions))
+        old_log_probs = trajectory.log_probs
+        prob_ratios_t = jnp.exp(new_log_probs - old_log_probs)
+
+        normalized_advantages = (trajectory.advantages - jnp.mean(
+            trajectory.advantages)) / (jnp.std(trajectory.advantages) + 1e-8)
+
+        actor_loss = rlax.clipped_surrogate_pg_loss(
+            prob_ratios_t=prob_ratios_t,
+            adv_t=normalized_advantages,
+            epsilon=clip_range
+        )
+        critic_loss = jnp.mean(rlax.huber_loss(
+            jax.lax.stop_gradient(trajectory.returns) - values.squeeze()))
+        loss = actor_loss + 0.5 * critic_loss - entropy
+        return loss, (actor_loss, critic_loss, entropy)
+
+    ppo_forward_during_update_steps = jax.jit(ppo_forward_during_update_steps)
+    ppo_loss = jax.jit(ppo_loss)
+
+    (loss, (actor_loss, critic_loss, entropy)), grads = jax.value_and_grad(
+        ppo_loss, has_aux=True, allow_int=True)(state.params, trajectory)
     state = state.apply_gradients(grads=grads)
-    return state, loss
+    return state, (loss, actor_loss, critic_loss, entropy)
 
 
 def collect_and_update_ppo_loop(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, gamma: float, gae_lambda: float, **kwargs):
@@ -144,6 +165,12 @@ def collect_and_update_ppo_loop(envs: gym.Env, state, trajectory: Trajectory, ho
         # advantages and returns have already one element less because of the GAE computation.
         advantages=trajectory.advantages.reshape(-1),
         returns=trajectory.returns.reshape(-1)
+
     )
-    state, loss = ppo_update(state, trajectory)
-    return state, loss, rng
+    for _ in range(kwargs.get("n_updates_per_rollout", 10)):
+        state, (loss, actor_loss, critic_loss, entropy) = ppo_update(
+            state, trajectory)
+        if kwargs.get("verbose", False):
+            print(f"Loss: {loss}")
+
+    return state, (loss, actor_loss, critic_loss, entropy), trajectory, rng
