@@ -17,12 +17,16 @@ def run():
     # setup
     rng = jax.random.PRNGKey(config.Config.model_seed)
     envs = envpool.make("CartPole-v1", env_type="gym",
-                        num_envs=config.Config.n_envs, seed=config.Config.env_seed)
+                        num_envs=config.Config.n_envs, seed=config.Config.env_seed
+                        )
 
     # model
     model = ppo_model.PPOActorCritic(envs.action_space.n)
     # optimizer
-    optimizer = optax.adam(config.Config.learning_rate)
+    optimizer = optax.chain(
+        optax.clip_by_global_norm(1.0),  # Clip gradients at norm 1
+        optax.adam(learning_rate=config.Config.learning_rate)
+    )
 
     # initialize state
     rng, model_rng = jax.random.split(rng)
@@ -48,11 +52,12 @@ def run():
     )
 
     for episode in range(config.Config.n_epochs):
+        rng, update_rng = jax.random.split(rng)
         state, (loss, actor_loss, critic_loss, entropy), trajectory, rng = agent.collect_and_update_ppo_loop(
             envs=envs,
             state=state,
             trajectory=trajectory,
-            rng=rng,
+            rng=update_rng,
             n_updates_per_rollout=config.Config.n_updates_per_rollout,
             horizon=config.Config.horizon,
             n_envs=config.Config.n_envs,
@@ -60,15 +65,20 @@ def run():
             gae_lambda=config.Config.gae_lambda,
             clip_eps=config.Config.clip_eps,
             value_loss_coef=config.Config.value_loss_coef,
-            entropy_coef=config.Config.entropy_coef
+            entropy_coef=config.Config.entropy_coef,
+            batch_size=config.Config.n_envs,
+            mini_batch_size=config.Config.mini_batch_size,
+            verbose=False
         )
         print(f"""
             Episode: {episode} ---
+            Mean Action Probabitilities from log_probs: {jnp.mean(jnp.exp(trajectory.log_probs))} ---
             Loss: {loss} ---
             Actor Loss: {actor_loss} ---
             Critic Loss: {critic_loss} ---
             Entropy: {entropy} ---
-            Actions: {trajectory.actions} ---
+            actions: n_ones: {jnp.sum(trajectory.actions)} ---
+            actions: n_zeros: {jnp.sum(1 - trajectory.actions)} ---
             Mean Episode Return: {trajectory.episode_returns.mean()} ---
             Episode Return: {trajectory.episode_returns} ---
         """)

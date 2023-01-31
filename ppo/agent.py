@@ -48,7 +48,8 @@ def collect_trajectory(envs: gym.Env, state, trajectory: Trajectory, horizon, rn
         rng, ppo_key = jax.random.split(rng)
         action, value, log_probs = ppo_forward(
             state, obs, ppo_key, envs.action_space.n, is_deterministic)
-        next_obs, reward, done, _, _ = envs.step(np.array(action))
+        next_obs, reward, done, _, _ = envs.step(
+            np.array(action), env_id=np.arange(32))
         trajectory = trajectory.replace(
             obs=trajectory.obs.at[step].set(obs),
             actions=trajectory.actions.at[step].set(action),
@@ -66,7 +67,7 @@ def compute_gae_from_trajectory(rewards, values, dones, gamma: float, gae_lambda
     """Compute GAE."""
 
     gamma = gamma * (1 - dones[1:])
-    rewards = rewards[1:]
+    rewards = rewards[:-1]
 
     advantages = rlax.truncated_generalized_advantage_estimation(
         r_t=rewards,
@@ -83,14 +84,15 @@ def compute_envpool_reward_per_env(rewards, dones):
     rewards = rewards[1:]
     dones = dones[1:]
     episode_returns = rewards.sum(
-        axis=0) / dones.sum(axis=0) + 1  # always one episode
+        axis=0) / (dones.sum(axis=0) + 1)  # always one episode
     return episode_returns
 
 
 def collect_experiences(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, gamma: float, gae_lambda: float, is_deterministic=False):
     """Collect a single trajectory."""
+    rng, collect_trajectory_rng = jax.random.split(rng)
     state, trajectory, rng = collect_trajectory(
-        envs, state, trajectory, horizon, rng, is_deterministic)
+        envs, state, trajectory, horizon, collect_trajectory_rng, is_deterministic)
     advantages, returns = compute_gae_from_trajectory(
         trajectory.rewards, trajectory.values, trajectory.dones, gamma, gae_lambda)
 
@@ -102,6 +104,7 @@ def collect_experiences(envs: gym.Env, state, trajectory: Trajectory, horizon, r
     return trajectory, rng
 
 
+@jax.jit
 def ppo_update(state: train_state.TrainState, trajectory: Trajectory):
     """Update the PPO agent."""
 
@@ -146,10 +149,11 @@ def ppo_update(state: train_state.TrainState, trajectory: Trajectory):
     return state, (loss, actor_loss, critic_loss, entropy)
 
 
-def collect_and_update_ppo_loop(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, gamma: float, gae_lambda: float, **kwargs):
+def collect_and_update_ppo_loop(envs: gym.Env, state, trajectory: Trajectory, horizon, rng, gamma: float, gae_lambda: float, batch_size: int, mini_batch_size: int, **kwargs):
     """Collect a single trajectory."""
+    rng, experience_rng = jax.random.split(rng)
     trajectory, rng = collect_experiences(
-        envs, state, trajectory, horizon, rng, gamma, gae_lambda)
+        envs, state, trajectory, horizon, experience_rng, gamma, gae_lambda)
 
     # r + gamma * value(next_state, next_action) - value(state, action) <-- next_state is why we need an additional element to complete
     # the computation of the GAE.
@@ -168,9 +172,28 @@ def collect_and_update_ppo_loop(envs: gym.Env, state, trajectory: Trajectory, ho
 
     )
     for _ in range(kwargs.get("n_updates_per_rollout", 10)):
-        state, (loss, actor_loss, critic_loss, entropy) = ppo_update(
-            state, trajectory)
-        if kwargs.get("verbose", False):
-            print(f"Loss: {loss}")
+
+        # sample a
+        rng, subkey = jax.random.split(rng)
+        b_inds = jax.random.permutation(subkey, batch_size, independent=True)
+        for start in range(0, batch_size, mini_batch_size):
+            end = start + mini_batch_size
+            mb_inds = b_inds[start:end]
+            b_trajectory = Trajectory(
+                obs=trajectory.obs[mb_inds],
+                actions=trajectory.actions[mb_inds],
+                rewards=trajectory.rewards[mb_inds],
+                dones=trajectory.dones[mb_inds],
+                log_probs=trajectory.log_probs[mb_inds],
+                values=trajectory.values[mb_inds],
+                advantages=trajectory.advantages[mb_inds],
+                returns=trajectory.returns[mb_inds],
+                episode_returns=trajectory.episode_returns[mb_inds]
+            )
+
+            state, (loss, actor_loss, critic_loss, entropy) = ppo_update(
+                state, b_trajectory)
+            if kwargs.get("verbose", False):
+                print(f"Loss: {loss}")
 
     return state, (loss, actor_loss, critic_loss, entropy), trajectory, rng
