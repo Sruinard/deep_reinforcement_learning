@@ -4,12 +4,12 @@ import jax.numpy as jnp
 import envpool
 import rlax
 import optax
-from flax.
 
 import ppo_model
 import environment
 import agent
 import config
+
 
 def test_model_can_train_on_cartpole():
     # setup
@@ -32,7 +32,8 @@ def test_model_can_train_on_cartpole():
     # train
     state = train_state.TrainState.create(
         apply_fn=model.apply,
-        params=model.init(jax.random.PRNGKey(0), jnp.zeros((1, num_observations)))["params"],
+        params=model.init(jax.random.PRNGKey(0), jnp.zeros(
+            (1, num_observations)))["params"],
         tx=optimizer,
     )
 

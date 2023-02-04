@@ -17,3 +17,4 @@ class Config:
     clip_eps = 0.2
     value_loss_coef = 0.5
     entropy_coef = 0.01
+    critic_loss_coef = 0.5

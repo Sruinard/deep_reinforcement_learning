@@ -13,10 +13,10 @@ from typing import List
 
 
 class TrainConfig:
-    num_envs = 32
+    num_envs = 1
     env_seed = 42
 
-    n_epochs = 100000
+    n_episodes = 100000
     n_updates_per_rollout = 4
     horizon = 64
     mini_batch_size = 4
@@ -27,13 +27,15 @@ class TrainConfig:
     gamma = 0.99
     gae_lambda = 0.95
     clip_eps = 0.2
-    value_loss_coef = 0.5
-    entropy_coef = 0.01
+    entropy_coeff = 0.01
+    critic_loss_coeff = 0.5
+    log_every: int = 10
 
 
 @flax.struct.dataclass
 class Buffer:
     """A single trajectory."""
+
     obs: jnp.ndarray
     actions: jnp.ndarray
     rewards: jnp.ndarray
@@ -45,34 +47,44 @@ class Buffer:
     target_returns: jnp.ndarray = None
     episode_returns: jnp.ndarray = None
 
-    def __init__(self, horizon, observation_shape) -> None:
-        self.horizon = horizon
-        self.observation_shape = observation_shape
-        self.reset(horizon, observation_shape)
+    @classmethod
+    def create(cls, horizon, observation_shape):
+        return cls(
+            obs=jnp.zeros((horizon + 1, *observation_shape)),
+            actions=jnp.zeros((horizon + 1)),
+            rewards=jnp.zeros((horizon + 1)),
+            dones=jnp.zeros((horizon + 1)),
+            log_probs=jnp.zeros((horizon + 1)),
+            values=jnp.zeros((horizon + 1)),
+            advantages=jnp.zeros((horizon)),
+            target_returns=jnp.zeros((horizon)),
+            episode_returns=jnp.zeros((1,))
+        )
 
-    def reset(self, horizon, observation_shape):
-        self.obs = jnp.zeros((horizon + 1, *observation_shape))
-        self.actions = jnp.zeros((horizon + 1))
-        self.rewards = jnp.zeros((horizon + 1))
-        self.dones = jnp.zeros((horizon + 1))
-
-        self.log_probs = jnp.zeros((horizon + 1))
-        self.values = jnp.zeros((horizon + 1))
-
-        # advantags and target returns require a one step lookahead
-        self.advantages = jnp.zeros((horizon))
-        self.target_returns = jnp.zeros((horizon))
-        self.episode_returns = jnp.zeros((1,))
+    # double method for readability.
+    @classmethod
+    def reset(cls, horizon, observation_shape):
+        return cls(
+            obs=jnp.zeros((horizon + 1, *observation_shape)),
+            actions=jnp.zeros((horizon + 1)),
+            rewards=jnp.zeros((horizon + 1)),
+            dones=jnp.zeros((horizon + 1)),
+            log_probs=jnp.zeros((horizon + 1)),
+            values=jnp.zeros((horizon + 1)),
+            advantages=jnp.zeros((horizon)),
+            target_returns=jnp.zeros((horizon)),
+            episode_returns=jnp.zeros((1,))
+        )
 
 
 def store_step_in_buffer(buffer: Buffer, step: int, obs, action, reward, done, log_prob, value):
-    buffer.replace(
-        obs=buffer.obs.at[step].set(obs),
-        actions=buffer.actions.at[step].set(action),
-        rewards=buffer.rewards.at[step].set(reward),
-        dones=buffer.dones.at[step].set(done),
-        log_probs=buffer.log_probs.at[step].set(log_prob),
-        values=buffer.values.at[step].set(value)
+    buffer = buffer.replace(
+        obs=buffer.obs.at[step].set(jnp.squeeze(obs)),
+        actions=buffer.actions.at[step].set(jnp.squeeze(action)),
+        rewards=buffer.rewards.at[step].set(jnp.squeeze(reward)),
+        dones=buffer.dones.at[step].set(jnp.squeeze(done)),
+        log_probs=buffer.log_probs.at[step].set(jnp.squeeze(log_prob)),
+        values=buffer.values.at[step].set(jnp.squeeze(value))
     )
     return buffer
 
@@ -82,7 +94,7 @@ def compute_generalized_advantage_estimates(buffer: Buffer, gamma: float, gae_la
     discount_t = gamma * (1 - buffer.dones[:-1])
 
     gae = rlax.truncated_generalized_advantage_estimation(
-        rewards=buffer.rewards[:-1],
+        r_t=buffer.rewards[:-1],
         discount_t=discount_t,
         lambda_=gae_lambda,
         values=buffer.values,
@@ -117,17 +129,19 @@ def get_batch(buffer: Buffer, train_config: TrainConfig):
         buffer=buffer,
         gamma=train_config.gamma
     )
-    return (
-        buffer.obs[:-1],
-        buffer.actions[:-1],
-        buffer.advantages,
-        buffer.target_returns,
-        buffer.log_probs[:-1]
-    )
+
+    buffer = buffer.replace(actions=jnp.array(buffer.actions, dtype=jnp.int32))
+
+    # https://github.com/vwxyzjn/cleanrl/blob/master/cleanrl/ppo_atari_envpool_xla_jax_scan.py
+    def flatten(x):
+        return jnp.array(x.reshape((-1,) + x.shape[1:]), dtype=x.dtype)
+    batch = jax.tree_map(flatten, buffer)
+    return batch
 
 ##########################
 ######## Agent ###########
 ##########################
+
 
 class ActorCritic(nn.Module):
     num_actions: int
@@ -145,9 +159,138 @@ class ActorCritic(nn.Module):
         value_estimate = nn.Dense(1)(x)
         return logits, value_estimate
 
+
+def create_train_state(train_config: TrainConfig, observation_shape, num_actions):
+    """Create train state."""
+    actor_critic = ActorCritic(num_actions=num_actions)
+    rng = jax.random.PRNGKey(train_config.model_seed)
+    obs = jnp.zeros((1, *observation_shape))
+    initial_params = actor_critic.init(rng, obs)["params"]
+    optimizer = optax.adam(train_config.learning_rate)
+    return train_state.TrainState.create(
+        apply_fn=actor_critic.apply,
+        params=initial_params,
+        tx=optimizer
+    )
+
+
+def ppo_net(train_state: train_state.TrainState, params, obs):
+    """Get action logits and value estimates."""
+    logits, value_estimate = train_state.apply_fn({"params": params}, obs)
+    return logits, value_estimate
+
+
 def policy_from_logits(logits, rng, is_training=True):
     exploit = jnp.argmax(logits, axis=-1)
     explore = jax.random.categorical(rng, logits, axis=-1)
     action = jax.lax.select(is_training, explore, exploit)
     return action
 
+
+def collect_trajectory(train_state: train_state.TrainState, buffer: Buffer, env: gym.Env, rng: jax.random.PRNGKey, train_config: TrainConfig):
+    """Collect a single trajectory."""
+    obs, _ = env.reset()
+    for step in range(train_config.horizon + 1):  # +1 for the last step
+        logits, value_estimate = ppo_net(train_state, train_state.params, obs)
+        action = policy_from_logits(logits, rng, is_training=True)
+        next_obs, reward, done, _, _ = env.step(np.asarray(action))
+        log_prob = on_policy_log_prob(logits, action)
+        buffer = store_step_in_buffer(
+            buffer=buffer,
+            step=step,
+            obs=obs,
+            action=action,
+            reward=reward,
+            done=done,
+            log_prob=log_prob,
+            value=value_estimate
+        )
+        obs = next_obs
+        if done:
+            obs, _ = env.reset()
+    return buffer
+
+
+@partial(jax.vmap, in_axes=(0, 0))
+def on_policy_log_prob(logits, action):
+    log_probs = nn.log_softmax(logits)[action]
+    return log_probs
+
+
+@jax.jit
+def loss_fn(state: train_state.TrainState, params, buffer: Buffer, clip_eps: float, critic_loss_coeff: float, entropy_coeff: float):
+    """Compute loss."""
+    logits, value_estimates = state.apply_fn(
+        {"params": params}, buffer.obs[:-1])
+
+    # Actor loss
+    log_probs = on_policy_log_prob(logits, buffer.actions[:-1])
+    prob_ratio = jnp.exp(log_probs - buffer.log_probs[:-1])
+    normalized_advantage = (buffer.advantages - buffer.advantages.mean()) / (
+        buffer.advantages.std() + 1e-8)
+    actor_loss = rlax.clipped_surrogate_pg_loss(
+        prob_ratios_t=prob_ratio,
+        adv_t=normalized_advantage,
+        epsilon=clip_eps
+    )
+
+    # critic loss
+    critic_loss = jnp.mean(rlax.huber_loss(
+        buffer.target_returns - value_estimates
+    ))
+
+    # entropy loss
+    entropy_loss = rlax.entropy_loss(
+        logits, entropy_coeff * jnp.ones_like(buffer.actions[:-1]))
+
+    loss = actor_loss + critic_loss_coeff * critic_loss - entropy_loss
+    return loss, (actor_loss, critic_loss, entropy_loss)
+
+
+def update_ppo_model(state: train_state.TrainState, buffer: Buffer, train_config: TrainConfig):
+    """Update PPO model."""
+
+    batch = get_batch(buffer, train_config)
+    (loss, (actor_loss, critic_loss, entropy_loss)), grads = jax.value_and_grad(
+        loss_fn, argnums=1, has_aux=True)(state, state.params, batch, train_config.clip_eps, train_config.critic_loss_coeff, train_config.entropy_coeff)
+    state = state.apply_gradients(grads=grads)
+
+    return state, (loss, actor_loss, critic_loss, entropy_loss)
+
+
+# create run_loop
+def run_loop(train_config: TrainConfig, env: gym.Env, state: train_state.TrainState):
+    """Run training loop."""
+    rng = jax.random.PRNGKey(train_config.model_seed)
+    buffer = Buffer.create(horizon=train_config.horizon,
+                           observation_shape=env.observation_space.shape)
+    average_reward = 0
+    for episode in range(1, train_config.n_episodes + 1):
+        rng, rng_collect = jax.random.split(rng)
+        buffer = collect_trajectory(
+            state, buffer, env, rng_collect, train_config)
+        for _ in range(train_config.n_updates_per_rollout):
+            state, (loss, actor_loss, critic_loss, entropy_loss) = update_ppo_model(
+                state, buffer, train_config)
+
+        average_reward += buffer.rewards.sum()
+
+        if episode % train_config.log_every == 0:
+            print(
+                f"Episode: {episode}, loss: {loss}, actor_loss: {actor_loss}, critic_loss: {critic_loss}, entropy_loss: {entropy_loss}")
+            print(f"Average reward: {average_reward / train_config.log_every}")
+            average_reward = 0
+        buffer = buffer.reset(train_config.horizon,
+                              env.observation_space.shape)
+
+
+if __name__ == "__main__":
+    train_config = TrainConfig()
+    env = envpool.make(
+        "CartPole-v1",
+        env_type="gym",
+        num_envs=train_config.num_envs,
+    )
+    state = create_train_state(
+        train_config, env.observation_space.shape, env.action_space.n)
+    run_loop(train_config, env, state)
