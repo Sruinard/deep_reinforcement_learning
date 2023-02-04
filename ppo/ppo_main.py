@@ -18,7 +18,7 @@ class TrainConfig:
 
     n_episodes = 100000
     n_updates_per_rollout = 4
-    horizon = 64
+    horizon = 256
     mini_batch_size = 4
 
     learning_rate = 0.003
@@ -191,8 +191,9 @@ def collect_trajectory(train_state: train_state.TrainState, buffer: Buffer, env:
     """Collect a single trajectory."""
     obs, _ = env.reset()
     for step in range(train_config.horizon + 1):  # +1 for the last step
+        rng, rng_step = jax.random.split(rng)
         logits, value_estimate = ppo_net(train_state, train_state.params, obs)
-        action = policy_from_logits(logits, rng, is_training=True)
+        action = policy_from_logits(logits, rng_step, is_training=True)
         next_obs, reward, done, _, _ = env.step(np.asarray(action))
         log_prob = on_policy_log_prob(logits, action)
         buffer = store_step_in_buffer(
@@ -273,7 +274,8 @@ def run_loop(train_config: TrainConfig, env: gym.Env, state: train_state.TrainSt
             state, (loss, actor_loss, critic_loss, entropy_loss) = update_ppo_model(
                 state, buffer, train_config)
 
-        average_reward += buffer.rewards.sum()
+        average_reward_per_trajectory = buffer.rewards.sum() / max(buffer.dones.sum(), 1)
+        average_reward += average_reward_per_trajectory
 
         if episode % train_config.log_every == 0:
             print(
