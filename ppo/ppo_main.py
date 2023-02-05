@@ -18,7 +18,7 @@ class TrainConfig:
 
     n_episodes = 100000
     n_updates_per_rollout = 4
-    horizon = 256
+    horizon = 500
     mini_batch_size = 4
 
     learning_rate = 0.003
@@ -174,12 +174,14 @@ def create_train_state(train_config: TrainConfig, observation_shape, num_actions
     )
 
 
+@jax.jit
 def ppo_net(train_state: train_state.TrainState, params, obs):
     """Get action logits and value estimates."""
     logits, value_estimate = train_state.apply_fn({"params": params}, obs)
     return logits, value_estimate
 
 
+@jax.jit
 def policy_from_logits(logits, rng, is_training=True):
     exploit = jnp.argmax(logits, axis=-1)
     explore = jax.random.categorical(rng, logits, axis=-1)
