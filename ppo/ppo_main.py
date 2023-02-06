@@ -10,25 +10,27 @@ import envpool
 from functools import partial
 import numpy as np
 from typing import List
+import dataclasses
 
 
+@dataclasses.dataclass
 class TrainConfig:
-    num_envs = 1
-    env_seed = 42
+    num_envs: int = 1
+    env_seed: int = 42
 
-    n_episodes = 100000
-    n_updates_per_rollout = 4
-    horizon = 500
-    mini_batch_size = 4
+    n_episodes: int = 100000
+    n_updates_per_rollout: int = 4
+    horizon: int = 500
+    mini_batch_size: int = 4
 
-    learning_rate = 0.003
-    model_seed = 42
+    learning_rate: float = 0.003
+    model_seed: int = 42
 
-    gamma = 0.99
-    gae_lambda = 0.95
-    clip_eps = 0.2
-    entropy_coeff = 0.01
-    critic_loss_coeff = 0.5
+    gamma: float = 0.99
+    gae_lambda: float = 0.95
+    clip_eps: float = 0.2
+    entropy_coeff: float = 0.01
+    critic_loss_coeff: float = 0.5
     log_every: int = 10
 
 
