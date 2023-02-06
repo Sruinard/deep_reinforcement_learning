@@ -50,43 +50,44 @@ class Buffer:
     episode_returns: jnp.ndarray = None
 
     @classmethod
-    def create(cls, horizon, observation_shape):
+    def create(cls, horizon, num_envs, observation_shape):
         return cls(
-            obs=jnp.zeros((horizon + 1, *observation_shape)),
-            actions=jnp.zeros((horizon + 1)),
-            rewards=jnp.zeros((horizon + 1)),
-            dones=jnp.zeros((horizon + 1)),
-            log_probs=jnp.zeros((horizon + 1)),
-            values=jnp.zeros((horizon + 1)),
-            advantages=jnp.zeros((horizon)),
-            target_returns=jnp.zeros((horizon)),
-            episode_returns=jnp.zeros((1,))
+            obs=jnp.zeros((horizon + 1, num_envs, *observation_shape)),
+            actions=jnp.zeros((horizon + 1, num_envs)),
+            rewards=jnp.zeros((horizon + 1, num_envs)),
+            dones=jnp.zeros((horizon + 1, num_envs)),
+            log_probs=jnp.zeros((horizon + 1, num_envs)),
+            values=jnp.zeros((horizon + 1, num_envs)),
+            advantages=jnp.zeros((horizon, num_envs)),
+            target_returns=jnp.zeros((horizon, num_envs)),
+            episode_returns=jnp.zeros((1, num_envs))
         )
 
     # double method for readability.
     @classmethod
-    def reset(cls, horizon, observation_shape):
+    def reset(cls, horizon, num_envs, observation_shape):
         return cls(
-            obs=jnp.zeros((horizon + 1, *observation_shape)),
-            actions=jnp.zeros((horizon + 1)),
-            rewards=jnp.zeros((horizon + 1)),
-            dones=jnp.zeros((horizon + 1)),
-            log_probs=jnp.zeros((horizon + 1)),
-            values=jnp.zeros((horizon + 1)),
-            advantages=jnp.zeros((horizon)),
-            target_returns=jnp.zeros((horizon)),
-            episode_returns=jnp.zeros((1,))
+            obs=jnp.zeros((horizon + 1, num_envs, *observation_shape)),
+            actions=jnp.zeros((horizon + 1, num_envs)),
+            rewards=jnp.zeros((horizon + 1, num_envs)),
+            dones=jnp.zeros((horizon + 1, num_envs)),
+            log_probs=jnp.zeros((horizon + 1, num_envs)),
+            values=jnp.zeros((horizon + 1, num_envs)),
+            advantages=jnp.zeros((horizon, num_envs)),
+            target_returns=jnp.zeros((horizon, num_envs)),
+            episode_returns=jnp.zeros((1, num_envs))
         )
 
 
 def store_step_in_buffer(buffer: Buffer, step: int, obs, action, reward, done, log_prob, value):
     buffer = buffer.replace(
-        obs=buffer.obs.at[step].set(jnp.squeeze(obs)),
-        actions=buffer.actions.at[step].set(jnp.squeeze(action)),
-        rewards=buffer.rewards.at[step].set(jnp.squeeze(reward)),
-        dones=buffer.dones.at[step].set(jnp.squeeze(done)),
-        log_probs=buffer.log_probs.at[step].set(jnp.squeeze(log_prob)),
-        values=buffer.values.at[step].set(jnp.squeeze(value))
+        obs=buffer.obs.at[step].set(obs),
+        actions=buffer.actions.at[step].set(action),
+        rewards=buffer.rewards.at[step].set(reward),
+        dones=buffer.dones.at[step].set(done),
+        log_probs=buffer.log_probs.at[step].set(log_prob),
+        # convert num_envs x value_estimate --> value_estimate x num_envs
+        values=buffer.values.at[step].set(jnp.squeeze(value.T))
     )
     return buffer
 
@@ -211,8 +212,9 @@ def collect_trajectory(train_state: train_state.TrainState, buffer: Buffer, env:
             value=value_estimate
         )
         obs = next_obs
-        if done:
-            obs, _ = env.reset()
+        # envpool has autoreset as default, so we don't need to handle "if done"
+        # if done:
+        #     obs, _ = env.reset()
     return buffer
 
 
