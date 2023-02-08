@@ -16,7 +16,7 @@ import dataclasses
 
 @dataclasses.dataclass
 class TrainConfig:
-    num_envs: int = 32
+    num_envs: int = 128
     env_seed: int = 42
 
     n_episodes: int = 100000
@@ -320,7 +320,7 @@ def run_loop(train_config: TrainConfig, env: gym.Env, state: train_state.TrainSt
             print(f"Average reward: {running_100_avg_reward}")
             if running_100_avg_reward > train_config.target_reward:
                 checkpoints.save_checkpoint(
-                    train_config.checkpoint_dir, state, episode, keep=3)
+                    train_config.checkpoint_dir, state, episode, keep=3, overwrite=True)
                 print("Solved!")
                 break
 
